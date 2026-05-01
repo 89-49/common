@@ -1,6 +1,7 @@
 package org.pgsg.common.event;
 
 import java.util.UUID;
+import java.util.Objects;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.pgsg.common.domain.BaseEvent;

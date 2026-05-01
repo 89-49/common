@@ -75,9 +75,4 @@ public class EventConfig implements AsyncConfigurer {
 	public InboxCleanupScheduler inboxCleanupScheduler(JPAQueryFactory jpaQueryFactory) {
 		return new InboxCleanupScheduler(jpaQueryFactory);
 	}
-
-	@Bean
-	public JPAQueryFactory jpaQueryFactory(EntityManager entityManager) {
-		return new JPAQueryFactory(entityManager);
-	}
 }

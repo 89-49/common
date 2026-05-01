@@ -239,3 +239,136 @@ Get-Content "$env:USERPROFILE\.gradle\gradle.properties"
 **토큰 만료 시**
 
 GitHub에서 새 토큰을 재발급한 후 `gradle.properties`의 `gpr.token` 값을 교체합니다.
+
+
+
+
+
+# Event Messaging
+## 사전 준비
+### 1. 환경설정
+- Java 21, SpringBoot 3환경에서 동작하며, Kafka와 Redis 및 RDB가 필요합니다.
+### 2. Events 클래스 초기화
+- 애플리케이션 구동 시점에 Events 클래스에 스프링 빈을 주입하여 초기화해야 합니다. 초기화되지 않은 상태에서 호출 시 IllegalStateException이 발생합니다.
+```
+@Configuration
+public class EventConfig {
+    @Bean
+    public void initEvents(ApplicationEventPublisher publisher, KafkaTemplate<String, Object> template) {
+        Events.init(publisher, template);
+    }
+}
+```
+
+## 사용 방법
+### 1. 이벤트 발행(Trigger)
+- 비즈니스 로직 수행 후 @Transactional 내에서 이벤트를 트리거합니다. 이 시점에 이벤트는 DB의 Outbox 테이블에 PENDING 상태로 저장됩니다.
+```
+@Transactional
+public void createOrder(OrderRequest request) {
+    Order order = orderRepository.save(Order.create(request));
+    
+    // 이벤트 트리거: Outbox 저장 및 전송 준비
+    Events.trigger(new OrderCreatedEvent(order.getId(), order.getCorrelationId()));
+}
+```
+### 2. 메시지 발행 보장 (Relay & Scheduler)
+- Listener: 트랜잭션 커밋 직후 Kafka로 메시지를 즉시 전송합니다.
+- Scheduler: 전송에 실패한 메시지(FAILED, PENDING)를 5초 주기로 재전송합니다.
+- DLT (Dead Letter Topic): 최대 재시도 횟수(3회) 초과 시 메시지를 격리하고 PERMANENT_FAILURE 상태로 변경합니다.
+
+### 3. 중복 소비 방지(Inbox Pattern)
+- 수신 측에서는 @InboxLog 또는 InboxAdvice를 통해 메시지 중복 처리를 방지합니다. 헤더의 message_id를 확인하여 이미 처리된 메시지는 건너뜁니다.
+```
+@KafkaListener(topics = "order.created")
+public void handleOrder(@Payload OrderCreatedEvent event, @Header("message_id") String messageId) {
+    // InboxAdvice가 message_id를 추출하여 중복 체크를 수행합니다.
+}
+```
+- 테스트 전 초기 버전으로 수정이 될 수 있습니다. 
+- (사용 중 변경 사항 및 트러블 슈팅은 발생 시 작성하겠습니다!)
+
+
+
+# JWT
+## 1. 환경 설정 (JwtProperties)
+JWT 기능을 사용하려면 `application.yml`에 설정을 추가해야 합니다. 이 설정값은 `JwtProperties` 클래스를 통해 JWT 기능에서 사용됩니다.
+
+```yaml
+jwt:
+  secret: "${JWT_SECRET_KEY:your-secret-key-at-least-32-chars-long}"
+  access-token-expiration: 3600000 # 1시간 (ms)
+  refresh-token-expiration: 604800000 # 7일 (ms)
+```
+
+필요 시 `JwtProperties`를 직접 주입받아 설정된 만료 시간 등의 값을 참조할 수 있습니다.
+```java
+@Autowired
+private JwtProperties jwtProperties;
+
+Long expiration = jwtProperties.getAccessTokenExpiration();
+```
+
+## 2. TokenProvider 사용법
+
+`TokenProvider` 인터페이스(구현체: `JwtTokenProvider`)를 주입받아 토큰 생성 및 검증을 수행합니다.
+
+### 토큰 쌍 생성 (Access & Refresh)
+
+```java
+@Autowired
+private TokenProvider tokenProvider;
+
+// UserDetailsImpl 객체를 바탕으로 TokenPair 생성
+TokenPair tokenPair = tokenProvider.createTokenPair(userDetails);
+
+String accessToken = tokenPair.getAccessToken();   // "Bearer " 접두사 포함
+String refreshToken = tokenPair.getRefreshToken();
+Long expires = tokenPair.getAccessTokenExpiresIn();
+```
+
+### 토큰 검증 및 정보 추출
+
+* 정보 추출 기능(parseClaims() 메서드)의 경우, 해당 기능을 사용할 서비스의 build.gradle에 jjwt-api 의존성을 추가해야 사용 가능
+
+```
+implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+```
+
+```java
+// 유효성 검사 (만료, 서명 등)
+boolean isValid = tokenProvider.validateToken(token);
+
+// 사용자 식별값(UUID) 추출
+UUID userId = tokenProvider.getUserId(token);
+
+// 남은 유효 시간 확인 (ms)
+long remainingTime = tokenProvider.getRemainingTime(token);
+
+// 토큰 파싱 (Claims 추출)
+// 토큰 내부의 전체 클레임을 추출하여 상세 정보에 접근할 수 있습니다.
+Claims claims = tokenProvider.parseClaims(token);
+String role = claims.get(JwtUtils.CLAIM_USER_ROLE, String.class);
+String nickname = claims.get(JwtUtils.CLAIM_NICKNAME, String.class);
+```
+
+### 만료된 토큰 처리 (재발급 시)
+```java
+// 만료된 Access Token에서도 Subject(UUID)를 추출할 수 있습니다.
+String userIdStr = tokenProvider.getSubjectFromExpiredAccessToken(expiredAccessToken);
+```
+
+## 3. JwtUtils 및 상수 활용
+`JwtUtils`는 토큰 파싱 유틸리티와 게이트웨이 연동을 위한 상수를 제공합니다.
+
+- **토큰 추출**: `JwtUtils.resolveToken(header)` (Bearer 접두사 제거)
+- **표준 헤더 상수**: 게이트웨이에서 전달하는 사용자 정보 헤더 키
+    - `JwtUtils.HEADER_USER_ID`: "X-User-Id"
+    - `JwtUtils.HEADER_USERNAME`: "X-User-Username"
+    - `JwtUtils.HEADER_ROLES`: "X-User-Roles"
+    - `JwtUtils.HEADER_USER_NAME`: "X-User-Name"
+    - `JwtUtils.HEADER_USER_NICKNAME`: "X-User-Nickname"
+
+
+
+

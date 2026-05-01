@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class OutboxEventListener {
 	private final OutboxRepository outboxRepository;
@@ -78,7 +79,7 @@ public class OutboxEventListener {
 				outbox.getPayload()
 			);
 
-			record.headers().add("message_id", targetId.toString().getBytes());
+			record.headers().add("message_id", targetId.toString().getBytes(StandardCharsets.UTF_8));
 			record.headers().add("correlation_id", outbox.getCorrelationId().toString().getBytes());
 
 			kafkaTemplate.send(record)

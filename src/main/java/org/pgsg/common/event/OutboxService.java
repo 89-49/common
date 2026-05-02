@@ -26,7 +26,7 @@ public class OutboxService {
 	private final OutboxRepository outboxRepository;
 	private final KafkaTemplate<String, Object> kafkaTemplate;
 
-	private static final int MAX_RETRY_COUNT = 3; // 재시도 최대 횟수
+	public static final int MAX_RETRY_COUNT = 3; // 재시도 최대 횟수
 
 	@Lazy
 	private OutboxService self;
@@ -41,13 +41,13 @@ public class OutboxService {
 
 	}
 
-	//최대 재시도 이상 실패 시 dlt 전송 -> dlt 전송 실패는 로그만 남겨서 직접 처리하도록 설계
+	//최대 재시도 이상 실패 시 dlt 전송 -> dlt 전송 실패는 로그만 남겨서 직접 처리하도록 설계	//todo: 영구 실패 시 discord알림 보내도록 고도화 예정
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void handleFailure(UUID id, Throwable e) {
 		outboxRepository.findById(id).ifPresent(outbox -> {
-			outbox.fail();
+			outbox.incrementRetryCount();
 
-			if (outbox.getRetryCount() >= MAX_RETRY_COUNT) {
+			if (outbox.getRetryCount() > MAX_RETRY_COUNT) {
 				log.error("최대 재시도 횟수 초과(Total: {}). DLT로 격리합니다: {}", outbox.getRetryCount(), id);
 				outbox.permanent_fail();
 				outboxRepository.saveAndFlush(outbox);

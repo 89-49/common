@@ -16,7 +16,6 @@ import jakarta.persistence.PersistenceContext;
 
 @Configuration
 @EnableJpaAuditing
-@ConditionalOnProperty(name = "spring.datasource.url")
 @ConditionalOnClass(name = "jakarta.persistence.Entity")
 @EnableJpaRepositories(basePackages = "org.pgsg")
 @EntityScan(basePackages = "org.pgsg")

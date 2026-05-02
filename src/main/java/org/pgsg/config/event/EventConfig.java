@@ -1,7 +1,7 @@
 package org.pgsg.config.event;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.util.concurrent.Executor;
+
 import org.pgsg.common.domain.InboxRepository;
 import org.pgsg.common.domain.OutboxRepository;
 import org.pgsg.common.event.Events;
@@ -21,9 +21,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 
-import java.util.concurrent.Executor;
-
-import jakarta.persistence.EntityManager;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 
 @EnableAsync
 @Configuration

@@ -52,18 +52,16 @@ public class Outbox extends BaseEntity{
 		this.status = OutboxStatus.PROCESSED;
 	}
 
-	public void fail() {
-		if(retryCount>3)	//재시도 횟수 3회로 설정
-			this.status = OutboxStatus.FAILED;
-		else
-			this.retryCount++;
+	public void incrementRetryCount() {
+		this.retryCount++;
 	}
+
 	public void permanent_fail() {
 		this.status = OutboxStatus.PERMANENT_FAILURE;
 	}
 
 	public void backToReady(){
 		this.status=OutboxStatus.PENDING;
-	}
+	}	//재시도는 다시 claimForSending을 통해 변경하도록
 
 }

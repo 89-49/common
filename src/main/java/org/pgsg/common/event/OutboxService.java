@@ -9,6 +9,7 @@ import org.pgsg.common.domain.Outbox;
 import org.pgsg.common.domain.OutboxRepository;
 import org.pgsg.common.domain.OutboxStatus;
 import org.pgsg.common.util.JsonUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class OutboxService {
 	public static final int MAX_RETRY_COUNT = 3; // 재시도 최대 횟수
 
 	@Lazy
+	@Autowired
 	private OutboxService self;
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)

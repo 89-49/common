@@ -56,7 +56,7 @@ public class Outbox extends BaseEntity{
 		this.retryCount++;
 	}
 
-	public void permanent_fail() {
+	public void permanentFail() {
 		this.status = OutboxStatus.PERMANENT_FAILURE;
 	}
 

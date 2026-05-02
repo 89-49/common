@@ -51,7 +51,7 @@ public class OutboxService {
 
 			if (outbox.getRetryCount() > MAX_RETRY_COUNT) {
 				log.error("최대 재시도 횟수 초과(Total: {}). DLT로 격리합니다: {}", outbox.getRetryCount(), id);
-				outbox.permanent_fail();
+				outbox.permanentFail();
 				outboxRepository.saveAndFlush(outbox);
 				self.sendToDlt(id);
 			} else {
@@ -131,7 +131,7 @@ public class OutboxService {
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void finalizePermanentFailure(UUID id) {
 		outboxRepository.findById(id).ifPresent(outbox -> {
-			outbox.permanent_fail();
+			outbox.permanentFail();
 			outboxRepository.saveAndFlush(outbox);
 		});
 	}

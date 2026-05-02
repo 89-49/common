@@ -27,7 +27,7 @@ public class OutboxRelayScheduler {
 	@Scheduled(fixedDelay = 5000) //todo: 성능 확인 후 cdc 툴 사용 고려
 	public void resendFailedMessages() {
 		// PENDING상태이면서 retryCount가 1~3인 목록 조회
-		List<Outbox> items = (List<Outbox>)outboxRepository.findAll(QOutbox.outbox.status.in(List.of(OutboxStatus.PENDING))
+		List<Outbox> items = (List<Outbox>)outboxRepository.findAll(QOutbox.outbox.status.eq(OutboxStatus.PENDING)
 				.and(QOutbox.outbox.retryCount.gt(0))
 				.and(QOutbox.outbox.retryCount.loe(MAX_RETRY_COUNT))
 			, QOutbox.outbox.createdAt.asc());

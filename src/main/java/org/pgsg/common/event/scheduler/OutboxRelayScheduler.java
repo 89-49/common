@@ -1,5 +1,7 @@
 package org.pgsg.common.event.scheduler;
 
+import static org.pgsg.common.event.OutboxService.MAX_RETRY_COUNT;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -22,14 +24,13 @@ public class OutboxRelayScheduler {
 	private final KafkaTemplate<String, Object> kafkaTemplate;
 	private final OutboxService outboxService;
 
-	private final int MAX_RETRY_COUNT = 3;	//todo: 추후 조정 가능
-
 	@Scheduled(fixedDelay = 5000) //todo: 성능 확인 후 cdc 툴 사용 고려
 	public void resendFailedMessages() {
-		// PENDING, FAILED 상태이면서 retryCount가 3 미만 목록 조회
-		List<Outbox> items = (List<Outbox>)outboxRepository.findAll(QOutbox.outbox.status.in(List.of(OutboxStatus.PENDING, OutboxStatus.FAILED))
-			.and(QOutbox.outbox.retryCount.lt(MAX_RETRY_COUNT)),
-		QOutbox.outbox.createdAt.asc());
+		// PENDING상태이면서 retryCount가 1~3인 목록 조회
+		List<Outbox> items = (List<Outbox>)outboxRepository.findAll(QOutbox.outbox.status.eq(OutboxStatus.PENDING)
+				.and(QOutbox.outbox.retryCount.gt(0))
+				.and(QOutbox.outbox.retryCount.loe(MAX_RETRY_COUNT))
+			, QOutbox.outbox.createdAt.asc());
 
 		if (items.isEmpty()) return;
 

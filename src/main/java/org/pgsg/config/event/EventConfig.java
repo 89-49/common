@@ -1,7 +1,7 @@
 package org.pgsg.config.event;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.util.concurrent.Executor;
+
 import org.pgsg.common.domain.InboxRepository;
 import org.pgsg.common.domain.OutboxRepository;
 import org.pgsg.common.event.Events;
@@ -11,6 +11,7 @@ import org.pgsg.common.event.scheduler.OutboxRelayScheduler;
 import org.pgsg.common.messaging.advice.InboxAdvice;
 import org.pgsg.common.messaging.scheduler.InboxCleanupScheduler;
 import org.pgsg.common.util.MdcTaskDecorator;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
@@ -21,11 +22,13 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 
-import java.util.concurrent.Executor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 
 @EnableAsync
 @Configuration
 @EnableScheduling
+@ConditionalOnClass(name = "org.apache.kafka.clients.producer.KafkaProducer")
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 public class EventConfig implements AsyncConfigurer {
 
@@ -72,5 +75,13 @@ public class EventConfig implements AsyncConfigurer {
 	@Bean
 	public InboxCleanupScheduler inboxCleanupScheduler(JPAQueryFactory jpaQueryFactory) {
 		return new InboxCleanupScheduler(jpaQueryFactory);
+	}
+
+	@Bean
+	public OutboxService outboxService(
+		OutboxRepository outboxRepository,
+		KafkaTemplate<String, Object> kafkaTemplate
+	) {
+		return new OutboxService(outboxRepository, kafkaTemplate);
 	}
 }

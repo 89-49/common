@@ -1,7 +1,7 @@
 package org.pgsg.common.event;
 
-import java.util.UUID;
 import java.util.Objects;
+import java.util.UUID;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.pgsg.common.domain.BaseEvent;
@@ -9,9 +9,9 @@ import org.pgsg.common.domain.Outbox;
 import org.pgsg.common.domain.OutboxRepository;
 import org.pgsg.common.domain.OutboxStatus;
 import org.pgsg.common.util.JsonUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,16 +20,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class OutboxService {
 	private final OutboxRepository outboxRepository;
 	private final KafkaTemplate<String, Object> kafkaTemplate;
 
-	private static final int MAX_RETRY_COUNT = 3; // 재시도 최대 횟수
+	public static final int MAX_RETRY_COUNT = 3; // 재시도 최대 횟수
 
 	@Lazy
-	private final OutboxService self;
+	@Autowired
+	private OutboxService self;
+
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void handleSuccess(UUID id) {
 		outboxRepository.findById(id).ifPresent(outbox -> {
@@ -40,15 +41,15 @@ public class OutboxService {
 
 	}
 
-	//최대 재시도 이상 실패 시 dlt 전송 -> dlt 전송 실패는 로그만 남겨서 직접 처리하도록 설계
+	//최대 재시도 이상 실패 시 dlt 전송 -> dlt 전송 실패는 로그만 남겨서 직접 처리하도록 설계	//todo: 영구 실패 시 discord알림 보내도록 고도화 예정
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void handleFailure(UUID id, Throwable e) {
 		outboxRepository.findById(id).ifPresent(outbox -> {
-			outbox.fail();
+			outbox.incrementRetryCount();
 
-			if (outbox.getRetryCount() >= MAX_RETRY_COUNT) {
+			if (outbox.getRetryCount() > MAX_RETRY_COUNT) {
 				log.error("최대 재시도 횟수 초과(Total: {}). DLT로 격리합니다: {}", outbox.getRetryCount(), id);
-				outbox.permanent_fail();
+				outbox.permanentFail();
 				outboxRepository.saveAndFlush(outbox);
 				self.sendToDlt(id);
 			} else {
@@ -128,7 +129,7 @@ public class OutboxService {
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void finalizePermanentFailure(UUID id) {
 		outboxRepository.findById(id).ifPresent(outbox -> {
-			outbox.permanent_fail();
+			outbox.permanentFail();
 			outboxRepository.saveAndFlush(outbox);
 		});
 	}

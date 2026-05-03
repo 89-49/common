@@ -17,8 +17,7 @@ public interface OutboxRepository extends JpaRepository<Outbox, UUID>, QuerydslP
 	@Modifying
 	@Query("UPDATE Outbox o SET o.status = :outboxStatus " +
 		"WHERE o.id = :id " +
-		"AND (o.status = org.pgsg.common.domain.OutboxStatus.PENDING " +
-		"OR o.status = org.pgsg.common.domain.OutboxStatus.FAILED)")
+		"AND (o.status = org.pgsg.common.domain.OutboxStatus.PENDING)")
 	int updateStatusIfReady(@Param("id") UUID id, @Param("outboxStatus") OutboxStatus outboxStatus);
 
 	List<Outbox> findAllByCorrelationId(UUID uuid);

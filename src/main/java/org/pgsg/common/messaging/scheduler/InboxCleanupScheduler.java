@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import org.pgsg.common.domain.InboxStatus;
 import org.pgsg.common.domain.QInbox;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
+@ConditionalOnBean(javax.sql.DataSource.class)
 public class InboxCleanupScheduler {
 	private final JPAQueryFactory queryFactory;
 

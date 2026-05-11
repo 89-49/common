@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'org.pgsg'
-version = '0.3.1-SNAPSHOT'
+version = '0.3.2-SNAPSHOT'
 description = 'common'
 
 java {
@@ -58,10 +58,10 @@ dependencies {
     api 'org.springframework.boot:spring-boot-starter-actuator'
     api 'io.micrometer:micrometer-registry-prometheus'
 
-//    // Zipkin
-//    api 'io.micrometer:micrometer-tracing-bridge-brave'
-//    api 'io.zipkin.reporter2:zipkin-reporter-brave'
-//    api 'io.github.openfeign:feign-micrometer'
+    // Zipkin
+    api 'io.micrometer:micrometer-tracing-bridge-brave'
+    api 'io.zipkin.reporter2:zipkin-reporter-brave'
+    api 'io.github.openfeign:feign-micrometer'
 
     api 'io.github.openfeign.querydsl:querydsl-jpa:6.8'
     annotationProcessor 'io.github.openfeign.querydsl:querydsl-apt:6.8:jpa'
